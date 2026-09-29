@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>반복 스프린트</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C23B22">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
@@ -110,6 +114,8 @@ button[disabled]{opacity:.4;cursor:not-allowed}
 .histact{display:flex;gap:8px;margin-top:14px}
 .histact button{flex:1;background:var(--card);color:var(--ink);border:1px solid var(--edge);padding:12px;font-weight:600}
 .note{font-size:.8rem;color:var(--muted);line-height:1.6;margin-top:16px}
+#dim{position:fixed;inset:0;background:#000;color:#555;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-family:"Barlow Condensed",sans-serif}
+#dim b{font-size:5rem;line-height:1}#dim span{font-family:"Noto Sans KR",sans-serif;font-size:.9rem}
 @media (prefers-reduced-motion:reduce){.board,.bar i{transition:none}}
 </style>
 </head>
@@ -134,6 +140,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
   <div class="actions">
     <button class="primary" id="startBtn">시작</button>
     <button class="ghost hidden" id="arriveBtn">도착</button>
+    <button class="ghost hidden" id="dimBtn">어둡게</button>
     <button class="ghost hidden" id="stopBtn">그만</button>
   </div>
 
@@ -184,6 +191,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
 
   <p class="note" id="trainNote">휴대폰을 손에 들거나 팔에 차고 뛰세요. GPS는 1~2초 늦게 반응하고 몇 미터 오차가 있어서, 짧은 거리에서는 알림이 조금 늦을 수 있어요. 도착했는데 소리가 안 나면 도착 버튼을 누르면 돼요. 위치가 잡히지 않으면 시간 모드를 쓰세요.</p>
 </main>
+<div id="dim" class="hidden"><span id="dimPhase"></span><b id="dimBig"></b><span>화면을 누르면 돌아와요</span></div>
 
 <script>
 (function(){
@@ -305,6 +313,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
     $('big').innerHTML=big+(unit?`<small>${unit}</small>`:'');
     $('sub').textContent=sub; $('bar').style.width=Math.max(0,Math.min(100,pct))+'%';
     $('rep').textContent=`${rep} / ${total||val('reps')}`;
+    $('dimPhase').textContent=`${label} · ${rep}/${total||val('reps')}`; $('dimBig').textContent=big;
   }
   function idleView(){
     if(state!=='idle') return;
@@ -322,7 +331,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
     save(); keepAwake();
     total=val('reps'); target=val('dist'); rep=0; times=[]; dists=[]; sessStart=Date.now();
     $('logList').innerHTML=''; $('log').classList.add('hidden');
-    $('settings').classList.add('hidden'); $('startBtn').classList.add('hidden'); $('stopBtn').classList.remove('hidden');
+    $('settings').classList.add('hidden'); $('startBtn').classList.add('hidden'); $('stopBtn').classList.remove('hidden'); $('dimBtn').classList.remove('hidden');
     beginCountdown(5,'준비');
     say('준비하세요');
     timer=setInterval(loop,100);
@@ -364,7 +373,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
   function reset(){
     try{ wake && wake.release(); }catch(e){} wake=null;
     $('settings').classList.remove('hidden'); $('startBtn').classList.remove('hidden');
-    $('stopBtn').classList.add('hidden'); $('arriveBtn').classList.add('hidden');
+    $('stopBtn').classList.add('hidden'); $('arriveBtn').classList.add('hidden'); $('dimBtn').classList.add('hidden'); $('dim').classList.add('hidden');
     $('startBtn').textContent = state==='done' ? '다시 시작' : '시작';
     if(state==='done') state='idle';
   }
@@ -476,6 +485,10 @@ button[disabled]{opacity:.4;cursor:not-allowed}
   }
   $('tabTrain').onclick=()=>tab('train'); $('tabHist').onclick=()=>tab('hist');
 
+  $('dimBtn').onclick=()=>$('dim').classList.remove('hidden');
+  $('dim').onclick=()=>$('dim').classList.add('hidden');
+  // 앱 설치용 서비스 워커
+  if('serviceWorker' in navigator && !inFrame){ try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} }
   $('startBtn').onclick=start;
   $('stopBtn').onclick=stop;
   $('arriveBtn').onclick=()=>endRun(true);
