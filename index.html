@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>반복 스프린트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2EC; --ink:#14231A; --muted:#5A6B60; --line:#FFFFFF;
+  --card:#FFFFFF; --edge:#CFD8CF;
+  --run:#C23B22; --rest:#2F7D46; --ready:#D08A00; --field:#2F7D46;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1A13; --ink:#E8EFE9; --muted:#93A698; --line:#E8EFE9;
+    --card:#17261C; --edge:#2A3D30;
+    --run:#E0553A; --rest:#4FAE6C; --ready:#F0A928;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1A13; --ink:#E8EFE9; --muted:#93A698; --line:#E8EFE9;
+  --card:#17261C; --edge:#2A3D30;
+  --run:#E0553A; --rest:#4FAE6C; --ready:#F0A928;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  -webkit-tap-highlight-color:transparent}
+main{max-width:460px;margin:0 auto;padding:18px 16px 32px}
+h1{font-size:1.15rem;font-weight:800;margin:4px 0 14px;letter-spacing:-.01em}
+.num{font-family:"Barlow Condensed","Arial Narrow",sans-serif}
+
+/* 전광판 */
+.board{position:relative;border-radius:18px;overflow:hidden;color:#fff;
+  background:var(--muted);padding:18px 18px 16px;min-height:250px;
+  display:flex;flex-direction:column;transition:background .25s}
+.board::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 23%,rgba(255,255,255,.14) 23% 23.6%)}
+.board[data-phase="run"]{background:var(--run)}
+.board[data-phase="rest"]{background:var(--rest)}
+.board[data-phase="ready"]{background:var(--ready)}
+.board[data-phase="done"]{background:var(--field)}
+.top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
+.phase{font-weight:800;font-size:1.25rem}
+.rep{font-size:1.6rem;font-weight:600}
+.big{position:relative;z-index:1;font-size:clamp(5rem,30vw,8.5rem);font-weight:800;line-height:.9;margin:auto 0 0}
+.big small{font-size:.32em;font-weight:600;margin-left:6px}
+.sub{position:relative;z-index:1;font-size:.95rem;opacity:.92;min-height:1.4em;margin-top:4px}
+.bar{position:relative;z-index:1;height:8px;border-radius:4px;background:rgba(255,255,255,.28);margin-top:12px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:#fff;transition:width .15s linear}
+
+.gps{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted);margin:12px 2px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--edge);flex:none}
+.dot.ok{background:var(--rest)} .dot.weak{background:var(--ready)} .dot.bad{background:var(--run)}
+
+.actions{display:flex;gap:10px;margin:6px 0 18px}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--ready);outline-offset:2px}
+.primary{flex:1;background:var(--ink);color:var(--bg);font-weight:800;font-size:1.1rem;padding:16px}
+.ghost{background:var(--card);color:var(--ink);border:1px solid var(--edge);font-weight:600;padding:16px 18px}
+button[disabled]{opacity:.4;cursor:not-allowed}
+
+.settings{background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:6px 14px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--edge)}
+.row:last-child{border-bottom:0}
+.row label{font-weight:600;font-size:.95rem}
+.row .hint{display:block;font-weight:400;font-size:.78rem;color:var(--muted)}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:38px;height:38px;background:var(--bg);color:var(--ink);font-size:1.2rem;font-weight:800;border:1px solid var(--edge)}
+.step input{width:64px;text-align:center;font-family:"Barlow Condensed",sans-serif;font-size:1.4rem;font-weight:600;
+  background:transparent;color:var(--ink);border:0;padding:4px 0}
+.seg{display:flex;background:var(--bg);border:1px solid var(--edge);border-radius:10px;padding:3px}
+.seg button{background:transparent;color:var(--muted);padding:8px 12px;font-weight:600;font-size:.9rem;border-radius:8px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.hidden{display:none!important}
+
+.log{margin-top:18px}
+.log h2{font-size:1rem;margin:0 0 8px}
+.log ol{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.log li{background:var(--card);border:1px solid var(--edge);border-radius:10px;padding:8px 10px;font-size:.8rem;color:var(--muted)}
+.log li b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:1.4rem;color:var(--ink)}
+.note{font-size:.8rem;color:var(--muted);line-height:1.6;margin-top:16px}
+@media (prefers-reduced-motion:reduce){.board,.bar i{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>반복 스프린트</h1>
+
+  <section class="board" id="board" data-phase="idle" aria-live="polite">
+    <div class="top"><span class="phase" id="phase">대기</span><span class="rep num" id="rep">0 / 8</span></div>
+    <div class="big num" id="big">30<small>m</small></div>
+    <div class="sub" id="sub">설정을 확인하고 시작을 누르세요</div>
+    <div class="bar"><i id="bar"></i></div>
+  </section>
+
+  <div class="gps" id="gpsRow"><span class="dot" id="gpsDot"></span><span id="gpsText">위치 확인 전</span></div>
+
+  <div class="actions">
+    <button class="primary" id="startBtn">시작</button>
+    <button class="ghost hidden" id="arriveBtn">도착</button>
+    <button class="ghost hidden" id="stopBtn">그만</button>
+  </div>
+
+  <section class="settings" id="settings">
+    <div class="row">
+      <label>거리 측정</label>
+      <div class="seg" role="group">
+        <button id="modeGps" aria-pressed="true">GPS</button>
+        <button id="modeTime" aria-pressed="false">시간</button>
+      </div>
+    </div>
+    <div class="row" id="rowDist">
+      <label for="dist">스프린트 거리<span class="hint">미터</span></label>
+      <div class="step"><button data-t="dist" data-d="-5">−</button><input id="dist" type="number" inputmode="numeric" value="30"><button data-t="dist" data-d="5">+</button></div>
+    </div>
+    <div class="row hidden" id="rowSec">
+      <label for="sec">스프린트 시간<span class="hint">초 · 30m는 약 5초</span></label>
+      <div class="step"><button data-t="sec" data-d="-1">−</button><input id="sec" type="number" inputmode="numeric" value="5"><button data-t="sec" data-d="1">+</button></div>
+    </div>
+    <div class="row">
+      <label for="rest">휴식 시간<span class="hint">초</span></label>
+      <div class="step"><button data-t="rest" data-d="-5">−</button><input id="rest" type="number" inputmode="numeric" value="20"><button data-t="rest" data-d="5">+</button></div>
+    </div>
+    <div class="row">
+      <label for="reps">반복 횟수</label>
+      <div class="step"><button data-t="reps" data-d="-1">−</button><input id="reps" type="number" inputmode="numeric" value="8"><button data-t="reps" data-d="1">+</button></div>
+    </div>
+  </section>
+
+  <section class="log hidden" id="log"><h2>기록</h2><ol id="logList"></ol></section>
+
+  <p class="note">휴대폰을 손에 들거나 팔에 차고 뛰세요. GPS는 1~2초 늦게 반응하고 몇 미터 오차가 있어서, 짧은 거리에서는 알림이 조금 늦을 수 있어요. 도착했는데 소리가 안 나면 도착 버튼을 누르면 돼요. 위치가 잡히지 않으면 시간 모드를 쓰세요.</p>
+</main>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const LIMITS = {dist:[10,200], sec:[2,30], rest:[5,180], reps:[1,30]};
+  let mode = 'gps';
+
+  // ---- 설정 저장/복원 ----
+  try{
+    const s = JSON.parse(localStorage.getItem('sprint-settings')||'null');
+    if(s){ ['dist','sec','rest','reps'].forEach(k=>{ if(s[k]) $(k).value=s[k]; }); if(s.mode) mode=s.mode; }
+  }catch(e){}
+  function save(){ try{ localStorage.setItem('sprint-settings', JSON.stringify({dist:val('dist'),sec:val('sec'),rest:val('rest'),reps:val('reps'),mode})); }catch(e){} }
+  function val(k){ const [lo,hi]=LIMITS[k]; let v=parseInt($(k).value,10); if(isNaN(v)) v=lo; return Math.min(hi,Math.max(lo,v)); }
+
+  document.querySelectorAll('.step button').forEach(b=>b.addEventListener('click',()=>{
+    const k=b.dataset.t; $(k).value = Math.min(LIMITS[k][1],Math.max(LIMITS[k][0], val(k)+parseInt(b.dataset.d,10))); save(); idleView();
+  }));
+  ['dist','sec','rest','reps'].forEach(k=>$(k).addEventListener('change',()=>{ $(k).value=val(k); save(); idleView(); }));
+  function setMode(m){
+    mode=m; $('modeGps').setAttribute('aria-pressed',m==='gps'); $('modeTime').setAttribute('aria-pressed',m==='time');
+    $('rowDist').classList.toggle('hidden',m!=='gps'); $('rowSec').classList.toggle('hidden',m!=='time');
+    $('gpsRow').classList.toggle('hidden',m!=='gps');
+    if(m==='gps') startGps(); save(); idleView();
+  }
+  $('modeGps').onclick=()=>setMode('gps'); $('modeTime').onclick=()=>setMode('time');
+
+  // ---- 소리 ----
+  let ctx=null;
+  function unlockAudio(){
+    try{ if(!ctx) ctx=new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==='suspended') ctx.resume(); }catch(e){}
+    try{ const u=new SpeechSynthesisUtterance(''); speechSynthesis.speak(u); }catch(e){}
+  }
+  function beep(freq=880,dur=.15,delay=0){
+    if(!ctx) return;
+    try{
+      const t=ctx.currentTime+delay, o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='square'; o.frequency.value=freq;
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.5,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t+dur+0.02);
+    }catch(e){}
+  }
+  function say(text){
+    try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='ko-KR'; u.rate=1.1; speechSynthesis.speak(u); }catch(e){}
+  }
+  const tick = ()=>beep(660,.12);
+  const go   = ()=>{ beep(1100,.45); };
+  const halt = ()=>{ beep(1300,.12); beep(1300,.12,.18); beep(1300,.25,.36); };
+  function vibrate(p){ try{ navigator.vibrate && navigator.vibrate(p); }catch(e){} }
+
+  // ---- 화면 켜둠 ----
+  let wake=null;
+  async function keepAwake(){ try{ if('wakeLock' in navigator) wake=await navigator.wakeLock.request('screen'); }catch(e){} }
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && state!=='idle' && state!=='done') keepAwake(); });
+
+  // ---- GPS ----
+  let watchId=null, fix=null, gotAny=false;
+  const MAX_ACC=30;
+  const inFrame=(()=>{ try{ return window.self!==window.top; }catch(e){ return true; } })();
+  function gpsStatus(cls,text){ $('gpsDot').className='dot '+cls; $('gpsText').textContent=text; }
+  function stopGps(){ try{ if(watchId!==null) navigator.geolocation.clearWatch(watchId); }catch(e){} watchId=null; }
+  function onGpsErr(err){
+    stopGps();
+    const why = err.code===1
+      ? (inFrame ? '이 화면(격리된 창)에서 위치 사용이 막혀 있어요. 시간 모드를 쓰세요.'
+                 : '위치 권한이 거부됐어요. 브라우저 사이트 설정에서 위치를 허용하세요.')
+      : err.code===2 ? '기기가 위치를 못 잡았어요. 위치 서비스가 켜져 있는지 확인하세요.'
+      : '위치 응답이 없어요. 밖으로 나가서 다시 시도하세요.';
+    gpsStatus('bad', `${why} (오류 ${err.code}: ${err.message||'-'}) · 눌러서 재시도`);
+  }
+  function startGps(){
+    if(watchId!==null) return;
+    if(!('geolocation' in navigator)){ gpsStatus('bad','이 브라우저는 위치 기능이 없어요. 시간 모드를 쓰세요.'); return; }
+    if(!window.isSecureContext){ gpsStatus('bad','보안 연결(https)이 아니라 위치를 쓸 수 없어요.'); return; }
+    gpsStatus('weak', `위치 찾는 중…${inFrame?' (내장 화면)':''}`);
+    // 권한 상태 미리 확인 (지원 브라우저만)
+    try{
+      navigator.permissions && navigator.permissions.query({name:'geolocation'}).then(p=>{
+        if(p.state==='denied' && !gotAny) gpsStatus('bad', inFrame ? '이 화면에서는 위치가 차단돼 있어요. 시간 모드를 쓰세요.' : '위치 권한이 차단돼 있어요. 사이트 설정에서 허용하세요.');
+      }).catch(()=>{});
+    }catch(e){}
+    const opt={enableHighAccuracy:true,maximumAge:0,timeout:30000};
+    try{
+      navigator.geolocation.getCurrentPosition(onPos,()=>{},opt); // 권한 팝업을 빨리 띄우기
+      watchId=navigator.geolocation.watchPosition(onPos,onGpsErr,opt);
+    }catch(e){ gpsStatus('bad','위치 요청 실패: '+e.message); }
+  }
+  $('gpsRow').addEventListener('click',()=>{ if(mode==='gps'){ stopGps(); startGps(); } });
+  function hav(a,b){
+    const R=6371000, r=Math.PI/180, dLat=(b.lat-a.lat)*r, dLon=(b.lon-a.lon)*r;
+    const h=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h));
+  }
+  // 달리는 동안 누적 거리
+  let lastPt=null, runDist=0;
+  function onPos(p){
+    const c=p.coords, pt={lat:c.latitude,lon:c.longitude,acc:c.accuracy,t:p.timestamp};
+    const acc=Math.round(c.accuracy); gotAny=true;
+    if(c.accuracy>500) gpsStatus('bad',`대략적인 위치만 잡혀요 (±${acc}m). 정확한 위치 옵션을 켜 주세요.`);
+    else if(c.accuracy<=10) gpsStatus('ok',`위치 정확도 좋음 (±${acc}m)`);
+    else if(c.accuracy<=MAX_ACC) gpsStatus('weak',`위치 정확도 보통 (±${acc}m)`);
+    else gpsStatus('bad',`위치 정확도 낮음 (±${acc}m) · 잠시 기다려 주세요`);
+    if(c.accuracy>MAX_ACC) return;
+    fix=pt;
+    if(state==='run' && mode==='gps'){
+      if(!lastPt){ lastPt=pt; return; }
+      const d=hav(lastPt,pt), dt=Math.max(.2,(pt.t-lastPt.t)/1000);
+      if(d/dt>12) return;           // 순간 튐 무시
+      if(d<1.2) return;             // 제자리 흔들림 무시
+      runDist+=d; lastPt=pt;
+      if(runDist>=target) endRun();
+    }
+  }
+
+  // ---- 진행 ----
+  let state='idle', rep=0, total=0, target=30, phaseEnd=0, phaseStart=0, timer=null, lastSpoken=null, times=[];
+  function show(phase,label,big,unit,sub,pct){
+    $('board').dataset.phase=phase; $('phase').textContent=label;
+    $('big').innerHTML=big+(unit?`<small>${unit}</small>`:'');
+    $('sub').textContent=sub; $('bar').style.width=Math.max(0,Math.min(100,pct))+'%';
+    $('rep').textContent=`${rep} / ${total||val('reps')}`;
+  }
+  function idleView(){
+    if(state!=='idle') return;
+    rep=0; total=val('reps');
+    if(mode==='gps') show('idle','대기',val('dist'),'m',`${val('dist')}m 달리기 · ${val('rest')}초 휴식 · ${val('reps')}회`,0);
+    else show('idle','대기',val('sec'),'초',`${val('sec')}초 달리기 · ${val('rest')}초 휴식 · ${val('reps')}회`,0);
+  }
+
+  function start(){
+    unlockAudio();
+    if(mode==='gps'){
+      startGps();
+      if(!fix){ say('위치가 아직 안 잡혔어요'); $('sub').textContent='위치가 잡힐 때까지 몇 초 기다렸다가 다시 눌러 주세요. 급하면 시간 모드를 쓰세요.'; return; }
+    }
+    save(); keepAwake();
+    total=val('reps'); target=val('dist'); rep=0; times=[];
+    $('logList').innerHTML=''; $('log').classList.add('hidden');
+    $('settings').classList.add('hidden'); $('startBtn').classList.add('hidden'); $('stopBtn').classList.remove('hidden');
+    beginCountdown(5,'준비');
+    say('준비하세요');
+    timer=setInterval(loop,100);
+  }
+  function beginCountdown(sec,label){ state='count'; phaseStart=Date.now(); phaseEnd=phaseStart+sec*1000; lastSpoken=null; countLabel=label; }
+  let countLabel='준비';
+
+  function beginRun(){
+    state='run'; rep++; phaseStart=Date.now(); runDist=0; lastPt=fix; // 출발 시점 위치
+    if(mode==='time') phaseEnd=phaseStart+val('sec')*1000;
+    go(); vibrate(400); say('출발');
+    $('arriveBtn').classList.toggle('hidden',mode!=='gps');
+  }
+  function endRun(){
+    if(state!=='run') return;
+    const t=(Date.now()-phaseStart)/1000; times.push(t); addLog(rep,t);
+    $('arriveBtn').classList.add('hidden');
+    halt(); vibrate([150,80,150,80,300]);
+    if(rep>=total){ finish(); return; }
+    state='rest'; phaseStart=Date.now(); phaseEnd=phaseStart+val('rest')*1000; lastSpoken=null;
+    setTimeout(()=>say(`정지. ${val('rest')}초 휴식`),700);
+  }
+  function addLog(n,t){
+    $('log').classList.remove('hidden');
+    const li=document.createElement('li');
+    li.innerHTML=`${n}회차<b>${t.toFixed(1)}초</b>`; $('logList').appendChild(li);
+  }
+  function finish(){
+    state='done'; clearInterval(timer); timer=null;
+    const avg=times.reduce((a,b)=>a+b,0)/times.length;
+    show('done','완료',total,'회',`평균 ${avg.toFixed(1)}초 · 수고했어요!`,100);
+    setTimeout(()=>say('훈련 끝. 수고했어요'),900);
+    reset();
+  }
+  function stop(){ clearInterval(timer); timer=null; try{speechSynthesis.cancel();}catch(e){} state='idle'; reset(); idleView(); }
+  function reset(){
+    try{ wake && wake.release(); }catch(e){} wake=null;
+    $('settings').classList.remove('hidden'); $('startBtn').classList.remove('hidden');
+    $('stopBtn').classList.add('hidden'); $('arriveBtn').classList.add('hidden');
+    $('startBtn').textContent = state==='done' ? '다시 시작' : '시작';
+    if(state==='done') state='idle';
+  }
+
+  function countdownCues(remain){
+    const s=Math.ceil(remain/1000);
+    if(s!==lastSpoken && s<=3 && s>=1){ lastSpoken=s; tick(); vibrate(80); say(String(s)); }
+  }
+  function loop(){
+    const now=Date.now();
+    if(state==='count'){
+      const remain=phaseEnd-now;
+      show('ready',countLabel,Math.max(1,Math.ceil(remain/1000)),'초',`${rep+1}회차 곧 출발`,100-remain/((phaseEnd-phaseStart))*100);
+      countdownCues(remain);
+      if(remain<=0) beginRun();
+    } else if(state==='run'){
+      const el=(now-phaseStart)/1000;
+      if(mode==='gps'){
+        show('run','달려!',Math.floor(runDist),'m',`${el.toFixed(1)}초 · 목표 ${target}m`,runDist/target*100);
+      } else {
+        const remain=(phaseEnd-now)/1000;
+        show('run','달려!',Math.max(0,remain).toFixed(1),'초',`${val('sec')}초 전력질주`,el/val('sec')*100);
+        if(remain<=0) endRun();
+      }
+    } else if(state==='rest'){
+      const remain=phaseEnd-now;
+      show('rest','휴식',Math.max(0,Math.ceil(remain/1000)),'초',`다음은 ${rep+1}회차 · 걸어서 출발선으로`,100-remain/(phaseEnd-phaseStart)*100);
+      countdownCues(remain);
+      if(remain<=0) beginRun();
+    }
+  }
+
+  $('startBtn').onclick=start;
+  $('stopBtn').onclick=stop;
+  $('arriveBtn').onclick=endRun;
+
+  setMode(mode);
+})();
+</script>
+</body>
+</html>
